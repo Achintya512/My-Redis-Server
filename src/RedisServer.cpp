@@ -6,10 +6,25 @@
 #include <cstring>
 #include <signal.h>
 #include "../header_files/RedisServer.h"
+#include "../header_files/RedisDatabase.h"
 #include "../header_files/RedisCommandHandler.h"
 // #pragma comment(lib, "ws2_32.lib")  // Link Winsock library
 
 static MyRedisServer* globalServer = nullptr;
+
+void signalHandler(int signum) {
+    if (globalServer) {
+        std::cout << "\nCaught signal " << signum << ", shutting down...\n";
+        globalServer->shutdown();
+    }
+    // exit(signum);
+}
+
+void MyRedisServer::setupSignalHandler() {
+    signal(SIGINT, signalHandler);
+}
+
+
 
 MyRedisServer::MyRedisServer(int port) : port(port), server_socket(INVALID_SOCKET), running(true) { // Constructor definition 
     globalServer = this;
@@ -18,9 +33,14 @@ MyRedisServer::MyRedisServer(int port) : port(port), server_socket(INVALID_SOCKE
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         std::cerr << "WSAStartup failed: " << WSAGetLastError() << "\n";
     }
+    setupSignalHandler();
 }
 
 void MyRedisServer::shutdown() {
+    if (RedisDatabase::getInstance().dump("dump.my_rdb"))
+        std::cout << "Database Dumped to dump.my_rdb\n";
+    else 
+        std::cerr << "Error dumping database\n";
     running = false;
     if (server_socket != INVALID_SOCKET) {  
         closesocket(server_socket);
@@ -83,5 +103,11 @@ void MyRedisServer::run() {
     for (auto& t : threads) {
         if (t.joinable()) t.join();
     }
+
+    // Before shutdown, persist the database
+    if (RedisDatabase::getInstance().dump("dump.my_rdb"))
+        std::cout << "Database Dumped to dump.my_rdb\n";
+    else 
+        std::cerr << "Error dumping database\n";
 
 }

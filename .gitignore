@@ -4,5 +4,6 @@ my_redis_server.exe
 
 dump.my_rdb
 
-
+test.cpp
+test.exe
 .vscode
